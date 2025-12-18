@@ -1,11 +1,11 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, redirect, jsonify
 import yt_dlp
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Direct Video Link API Running"
+    return "Video Downloader API Running"
 
 @app.route("/download")
 def download():
@@ -15,24 +15,45 @@ def download():
 
     ydl_opts = {
         "quiet": True,
-        "skip_download": True
+        "skip_download": True,
+        "format": "best",
+        "nocheckcertificate": True,
+        "extractor_args": {
+            "facebook": {
+                "include_dash_manifest": False
+            }
+        },
+        "user_agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0 Safari/537.36"
+        ),
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
 
-        video_url = None
+            if not info:
+                return jsonify({"error": "Extraction failed"})
 
-        # ✅ FIX: get best video URL from formats
-        if "formats" in info and info["formats"]:
-            video_url = info["formats"][-1]["url"]
-        elif "url" in info:
-            video_url = info["url"]
+            # Prefer direct URL
+            video_url = info.get("url")
 
-    if not video_url:
-        return jsonify({"error": "Unable to extract video link"})
+            # Fallback to formats
+            if not video_url and "formats" in info:
+                for f in reversed(info["formats"]):
+                    if f.get("url"):
+                        video_url = f["url"]
+                        break
 
-    return redirect(video_url)
+            if not video_url:
+                return jsonify({"error": "No video URL found"})
+
+            return redirect(video_url)
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 if __name__ == "__main__":
     app.run()
