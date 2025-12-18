@@ -20,7 +20,17 @@ def download():
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        video_url = info.get("url")
+
+        video_url = None
+
+        # ✅ FIX: get best video URL from formats
+        if "formats" in info and info["formats"]:
+            video_url = info["formats"][-1]["url"]
+        elif "url" in info:
+            video_url = info["url"]
+
+    if not video_url:
+        return jsonify({"error": "Unable to extract video link"})
 
     return redirect(video_url)
 
