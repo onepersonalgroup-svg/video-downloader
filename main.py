@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, redirect, jsonify
 import yt_dlp
 
 app = Flask(__name__)
@@ -7,8 +7,8 @@ app = Flask(__name__)
 def home():
     return "Video Downloader API Running"
 
-@app.route("/meta")
-def meta():
+@app.route("/download")
+def download():
     url = request.args.get("url")
     if not url:
         return jsonify({"error": "No URL provided"})
@@ -25,19 +25,12 @@ def meta():
 
             video_url = info.get("url")
             if not video_url and "formats" in info:
-                for f in reversed(info["formats"]):
-                    if f.get("url"):
-                        video_url = f["url"]
-                        break
+                video_url = info["formats"][-1]["url"]
 
         if not video_url:
-            return jsonify({"error": "No video found"})
+            return jsonify({"error": "Unable to extract video"})
 
-        return jsonify({
-            "title": info.get("title"),
-            "thumbnail": info.get("thumbnail"),
-            "video_url": video_url
-        })
+        return redirect(video_url)
 
     except Exception as e:
         return jsonify({"error": str(e)})
